@@ -1,10 +1,10 @@
 package src.com.learningpath.test;
 
 import src.com.learningpath.LearningPath;
-import com.learningpath.Progress;
-import com.learningpath.activities.*;
-import com.learningpath.users.Student;
-import com.learningpath.users.Teacher;
+import src.com.learningpath.Progress;
+import src.com.learningpath.activities.*;
+import src.com.learningpath.users.Student;
+import src.com.learningpath.users.Teacher;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 

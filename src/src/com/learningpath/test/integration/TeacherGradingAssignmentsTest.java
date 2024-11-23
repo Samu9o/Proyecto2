@@ -6,7 +6,7 @@ import src.com.learningpath.activities.ActivityStatus;
 import src.com.learningpath.activities.Assignment;
 import src.com.learningpath.users.Student;
 import src.com.learningpath.users.Teacher;
-import src.org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TeacherGradingAssignmentsTest {
