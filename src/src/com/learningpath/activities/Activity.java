@@ -69,7 +69,7 @@ public abstract class Activity implements Serializable {
     public boolean isMandatory() {
         return isMandatory;
     }
-  
+   
 
     // Método abstracto para obtener el tipo de actividad
     public abstract String getType();

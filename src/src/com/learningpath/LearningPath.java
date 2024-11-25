@@ -1,23 +1,30 @@
 package src.com.learningpath;
 
 import src.com.learningpath.activities.Activity;
-import src.com.learningpath.activities.ActivityType;
+import src.com.learningpath.activities.Assignment;
+import src.com.learningpath.activities.Quiz;
+import src.com.learningpath.activities.ResourceReview;
+import src.com.learningpath.activities.Survey;
+import src.com.learningpath.activities.OpenEndedExam;
 import src.com.learningpath.users.Teacher;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 /**
  * La clase LearningPath representa un camino de aprendizaje creado por un profesor.
- * Contiene información detallada sobre el Learning Path, incluidas las actividades asociadas,
- * la calificación promedio, y la retroalimentación de los estudiantes.
+ * Permite gestionar actividades, feedback y versiones.
  */
 public class LearningPath implements Serializable {
     private static final long serialVersionUID = 1L;
 
+    // Atributos básicos del Learning Path
     private String title;
     private String description;
     private String objectives;
@@ -29,22 +36,22 @@ public class LearningPath implements Serializable {
     private String version;
     private Teacher creator;
     private List<Activity> activities;
-    private List<String> feedbackList; // Retroalimentación de los estudiantes
+    private List<String> feedbackList;
 
     /**
-     * Constructor de la clase LearningPath.
+     * Constructor principal para crear un nuevo Learning Path.
      *
      * @param title          Título del Learning Path.
      * @param description    Descripción del Learning Path.
      * @param objectives     Objetivos del Learning Path.
      * @param difficultyLevel Nivel de dificultad (1-5).
-     * @param creator        Profesor que crea el Learning Path.
+     * @param creator        Profesor creador del Learning Path.
      */
     public LearningPath(String title, String description, String objectives, int difficultyLevel, Teacher creator) {
         this.title = title;
         this.description = description;
         this.objectives = objectives;
-        setDifficultyLevel(difficultyLevel); // Validación dentro del setter
+        this.difficultyLevel = difficultyLevel;
         this.creator = creator;
         this.activities = new ArrayList<>();
         this.feedbackList = new ArrayList<>();
@@ -56,178 +63,153 @@ public class LearningPath implements Serializable {
     }
 
     /**
-     * Agrega una actividad al Learning Path y actualiza la duración y versión.
+     * Constructor de copia para crear un nuevo Learning Path basado en uno existente.
      *
-     * @param activity La actividad a agregar.
-     * @return true si la actividad se agregó exitosamente, false si ya existe.
+     * @param original   El Learning Path original a copiar.
+     * @param newCreator El profesor que será el creador del nuevo Learning Path.
+     */
+    public LearningPath(LearningPath original, Teacher newCreator) {
+        this.title = original.title + " (Copia)";
+        this.description = original.description;
+        this.objectives = original.objectives;
+        this.difficultyLevel = original.difficultyLevel;
+        this.creator = newCreator;
+        this.activities = new ArrayList<>();
+        for (Activity activity : original.activities) {
+            this.activities.add(copyActivity(activity));
+        }
+        this.feedbackList = new ArrayList<>();
+        this.creationDate = new Date();
+        this.modificationDate = new Date();
+        this.version = "1.0";
+        this.duration = original.duration;
+        this.rating = original.rating;
+    }
+
+    /**
+     * Método auxiliar para copiar una actividad.
+     * Dependiendo del tipo de actividad, implementa la lógica de copia adecuada.
+     *
+     * @param activity La actividad a copiar.
+     * @return La copia de la actividad.
+     */
+    private Activity copyActivity(Activity activity) {
+        if (activity instanceof Assignment) {
+            Assignment original = (Assignment) activity;
+            return new Assignment(
+                original.getTitle(),
+                original.getDescription(),
+                original.getObjective(),
+                original.getDifficultyLevel(),
+                original.getExpectedDuration(),
+                original.isMandatory(),
+                original.getSubmissionInstructions()
+            );
+        } else if (activity instanceof Quiz) {
+            Quiz original = (Quiz) activity;
+            // Clonar las preguntas
+            List<src.com.learningpath.activities.Question> clonedQuestions = new ArrayList<>();
+            for (src.com.learningpath.activities.Question q : original.getQuestions()) {
+                clonedQuestions.add(new src.com.learningpath.activities.Question(
+                    q.getQuestionText(),
+                    q.getOptions().clone(), // Clonar el arreglo de opciones
+                    q.getCorrectOptionIndex(),
+                    q.getExplanation()
+                ));
+            }
+            return new Quiz(
+                original.getTitle(),
+                original.getDescription(),
+                original.getObjective(),
+                original.getDifficultyLevel(),
+                original.getExpectedDuration(),
+                original.isMandatory(),
+                clonedQuestions,
+                original.getPassingScore()
+            );
+        } else if (activity instanceof ResourceReview) {
+            ResourceReview original = (ResourceReview) activity;
+            return new ResourceReview(
+                original.getTitle(),
+                original.getDescription(),
+                original.getObjective(),
+                original.getDifficultyLevel(),
+                original.getExpectedDuration(),
+                original.isMandatory(),
+                original.getResourceLink()
+            );
+        } else if (activity instanceof Survey) {
+            Survey original = (Survey) activity;
+            Survey copiedSurvey = new Survey(
+                original.getTitle(),
+                original.getDescription(),
+                original.getObjective(),
+                original.getDifficultyLevel(),
+                original.getExpectedDuration(),
+                original.isMandatory()
+            );
+            for (src.com.learningpath.activities.SurveyQuestion sq : original.getSurveyQuestions()) {
+                copiedSurvey.addSurveyQuestion(new src.com.learningpath.activities.SurveyQuestion(sq.getQuestionText()));
+            }
+            return copiedSurvey;
+        } else if (activity instanceof OpenEndedExam) {
+            OpenEndedExam original = (OpenEndedExam) activity;
+            List<src.com.learningpath.activities.OpenEndedQuestion> clonedQuestions = new ArrayList<>();
+            for (src.com.learningpath.activities.OpenEndedQuestion q : original.getExamQuestions()) {
+                clonedQuestions.add(new src.com.learningpath.activities.OpenEndedQuestion(q.getQuestionText()));
+            }
+            return new OpenEndedExam(
+                original.getTitle(),
+                original.getDescription(),
+                original.getObjective(),
+                original.getDifficultyLevel(),
+                original.getExpectedDuration(),
+                original.isMandatory(),
+                new HashSet<>(Arrays.asList(src.com.learningpath.activities.ActivityType.EXAMEN)),
+                clonedQuestions
+            );
+        }
+        // Añadir más casos para otros tipos de actividades si es necesario
+        else {
+            throw new UnsupportedOperationException("Tipo de actividad no soportado para copia.");
+        }
+    }
+
+    // Métodos para gestionar actividades
+
+    /**
+     * Añade una actividad al Learning Path.
+     *
+     * @param activity La actividad a añadir.
+     * @return True si se añade exitosamente, false en caso contrario.
      */
     public boolean addActivity(Activity activity) {
-        if (activities.contains(activity)) {
-            System.out.println("La actividad '" + activity.getTitle() + "' ya existe en el Learning Path.");
-            return false;
+        if (activity != null) {
+            this.activities.add(activity);
+            this.duration += activity.getExpectedDuration();
+            this.modificationDate = new Date();
+            return true;
         }
-        activities.add(activity);
-        recalculateDuration();
-        this.modificationDate = new Date();
-        incrementVersion();
-        return true;
+        return false;
     }
 
     /**
-     * Elimina una actividad del Learning Path y actualiza la duración y versión.
+     * Elimina una actividad del Learning Path.
      *
      * @param activity La actividad a eliminar.
-     * @return true si la actividad se eliminó exitosamente, false si no existe.
+     * @return True si se elimina exitosamente, false en caso contrario.
      */
-    
     public boolean removeActivity(Activity activity) {
-        if (!activities.contains(activity)) {
-            System.out.println("La actividad '" + activity.getTitle() + "' no existe en el Learning Path.");
-            return false;
-        }
-        activities.remove(activity);
-        recalculateDuration();
-        this.modificationDate = new Date();
-        incrementVersion();
-        return true;
-    }
-
-    /**
-     * Recalcula la duración total del Learning Path sumando las duraciones esperadas de cada actividad.
-     */
-    private void recalculateDuration() {
-        this.duration = activities.stream().mapToInt(Activity::getExpectedDuration).sum();
-    }
-
-    /**
-     * Incrementa la versión del Learning Path cada vez que se realiza una modificación.
-     * Lógica simple de incremento de versión: "1.0" -> "1.1", "1.1" -> "1.2", etc.
-     */
-    private void incrementVersion() {
-        String[] parts = version.split("\\.");
-        int major = Integer.parseInt(parts[0]);
-        int minor = Integer.parseInt(parts[1]);
-        minor += 1;
-        this.version = major + "." + minor;
-    }
-
-    /**
-     * Actualiza la calificación promedio del Learning Path basado en las calificaciones de los estudiantes.
-     *
-     * @param newRating La nueva calificación proporcionada por un estudiante (0-5).
-     */
-    public void updateRating(double newRating) {
-        if (newRating < 0.0 || newRating > 5.0) {
-            System.out.println("Calificación inválida. Debe estar entre 0.0 y 5.0.");
-            return;
-        }
-        // Implementar lógica para calcular la calificación promedio
-        // Por simplicidad, asumiremos que 'rating' es un promedio acumulativo
-        // En un sistema real, podrías mantener un contador de calificaciones y sumar todas para obtener el promedio
-        this.rating = (this.rating + newRating) / 2;
-    }
-
-    /**
-     * Agrega retroalimentación de un estudiante al Learning Path.
-     *
-     * @param feedback La retroalimentación proporcionada por el estudiante.
-     */
-    public void addFeedback(String feedback) {
-        if (feedback != null && !feedback.trim().isEmpty()) {
-            feedbackList.add(feedback.trim());
+        if (this.activities.remove(activity)) {
+            this.duration -= activity.getExpectedDuration();
             this.modificationDate = new Date();
-            incrementVersion();
+            return true;
         }
-    }
-
-    // Getters y Setters para los campos privados
-
-    public String getTitle() {
-        return this.title;
-    }
-
-    public String getDescription() {
-        return this.description;
-    }
-
-    public String getObjectives() {
-        return this.objectives;
-    }
-
-    public int getDifficultyLevel() {
-        return this.difficultyLevel;
+        return false;
     }
 
     /**
-     * Establece el nivel de dificultad asegurando que esté entre 1 y 5.
-     *
-     * @param difficultyLevel Nivel de dificultad (1-5).
-     */
-    public void setDifficultyLevel(int difficultyLevel) {
-        if (difficultyLevel < 1 || difficultyLevel > 5) {
-            throw new IllegalArgumentException("Nivel de dificultad debe estar entre 1 y 5.");
-        }
-        this.difficultyLevel = difficultyLevel;
-    }
-
-    public int getDuration() {
-        return this.duration;
-    }
-
-    public double getRating() {
-        return this.rating;
-    }
-
-    public Date getCreationDate() {
-        return this.creationDate;
-    }
-
-    public Date getModificationDate() {
-        return this.modificationDate;
-    }
-
-    public String getVersion() {
-        return this.version;
-    }
-
-    public Teacher getCreator() {
-        return this.creator;
-    }
-
-    public List<Activity> getActivities() {
-        return this.activities;
-    }
-
-    public List<String> getFeedbackList() {
-        return this.feedbackList;
-    }
-
-    /**
-     * Sobrescribe el método equals basado en el título (asumiendo que es único).
-     *
-     * @param obj Objeto a comparar.
-     * @return true si los títulos son iguales, false en caso contrario.
-     */
-    @Override
-    public boolean equals(Object obj) {
-        if (this == obj) return true;
-        if (!(obj instanceof LearningPath)) return false;
-        LearningPath other = (LearningPath) obj;
-        return title.equalsIgnoreCase(other.title);
-    }
-
-    /**
-     * Sobrescribe el método hashCode basado en el título.
-     *
-     * @return hash code del título.
-     */
-    @Override
-    public int hashCode() {
-        return title.toLowerCase().hashCode();
-    }
-
-    /**
-     * Muestra información detallada del Learning Path.
+     * Muestra los detalles del Learning Path.
      */
     public void displayDetails() {
         System.out.println("Título: " + title);
@@ -235,15 +217,102 @@ public class LearningPath implements Serializable {
         System.out.println("Objetivos: " + objectives);
         System.out.println("Nivel de Dificultad: " + difficultyLevel);
         System.out.println("Duración Total: " + duration + " minutos");
-        System.out.println("Calificación Promedio: " + String.format("%.2f", rating) + "/5.0");
-        System.out.println("Fecha de Creación: " + creationDate);
-        System.out.println("Fecha de Última Modificación: " + modificationDate);
+        System.out.println("Calificación: " + rating);
+        System.out.println("Creado el: " + creationDate);
+        System.out.println("Última modificación: " + modificationDate);
         System.out.println("Versión: " + version);
-        System.out.println("Creado por: " + creator.getName());
+        System.out.println("Creador: " + creator.getName());
         System.out.println("Número de Actividades: " + activities.size());
-        System.out.println("Retroalimentación de Estudiantes: " + feedbackList.size());
     }
 
-    // Puedes añadir más métodos según tus necesidades, como obtener actividades por tipo, etc.
+    /**
+     * Actualiza la calificación del Learning Path.
+     *
+     * @param newRating La nueva calificación.
+     */
+    public void updateRating(double newRating) {
+        this.rating = newRating;
+        this.modificationDate = new Date();
+    }
+
+    /**
+     * Añade feedback al Learning Path.
+     *
+     * @param feedback El feedback a añadir.
+     */
+    public void addFeedback(String feedback) {
+        if (feedback != null && !feedback.trim().isEmpty()) {
+            this.feedbackList.add(feedback);
+            this.modificationDate = new Date();
+        }
+    }
+
+    // Getters
+
+    public String getTitle() {
+        return title;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public String getObjectives() {
+        return objectives;
+    }
+
+    public int getDifficultyLevel() {
+        return difficultyLevel;
+    }
+
+    public int getDuration() {
+        return duration;
+    }
+
+    public double getRating() {
+        return rating;
+    }
+
+    public Date getCreationDate() {
+        return creationDate;
+    }
+
+    public Date getModificationDate() {
+        return modificationDate;
+    }
+
+    public String getVersion() {
+        return version;
+    }
+
+    public Teacher getCreator() {
+        return creator;
+    }
+
+    public List<Activity> getActivities() {
+        return activities;
+    }
+
+    public List<String> getFeedbackList() {
+        return feedbackList;
+    }
+
+    // Sobrescribir equals y hashCode basados en title y creator (asumiendo que juntos son únicos)
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        LearningPath that = (LearningPath) o;
+
+        return Objects.equals(title, that.title) &&
+               Objects.equals(creator, that.creator);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(title, creator);
+    }
 }
 
