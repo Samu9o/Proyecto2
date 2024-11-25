@@ -24,5 +24,6 @@ public class Quiz extends Activity {
     public String getType() {
         return "Quiz";
     }
+    
 }
 	

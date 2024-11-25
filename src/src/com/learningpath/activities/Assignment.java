@@ -16,5 +16,6 @@ public class Assignment extends Activity {
     public String getType() {
         return "Assignment";
     }
+    
 }
 	
