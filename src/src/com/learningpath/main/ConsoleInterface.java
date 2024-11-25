@@ -9,6 +9,9 @@ import src.com.learningpath.users.*;
 import java.util.*;
 import java.io.IOException;
 
+/**
+ * Clase que gestiona la interfaz de consola para la aplicación de Learning Paths.
+ */
 public class ConsoleInterface {
     private Scanner scanner;
     private List<User> users;
@@ -44,7 +47,7 @@ public class ConsoleInterface {
      * Método principal que inicia la interfaz de consola.
      */
     public void start() {
-        System.out.println("=== Sistema de Recomendación de Learning Paths ===");
+        System.out.println("=== Sistema de Gestión de Learning Paths ===");
         boolean exit = false;
         while (!exit) {
             if (currentUser == null) {
@@ -160,7 +163,9 @@ public class ConsoleInterface {
             System.out.println("1. Crear Learning Path");
             System.out.println("2. Ver Learning Paths");
             System.out.println("3. Ver Estudiantes Inscritos");
-            System.out.println("4. Cerrar sesión");
+            System.out.println("4. Ver Respuestas a Encuestas");
+            System.out.println("5. Ver Respuestas a Exámenes de Preguntas Abiertas");
+            System.out.println("6. Cerrar sesión");
             System.out.print("Seleccione una opción: ");
             String choice = scanner.nextLine();
             switch (choice) {
@@ -168,12 +173,18 @@ public class ConsoleInterface {
                     createLearningPath(teacher);
                     break;
                 case "2":
-                    viewLearningPaths();
+                    viewLearningPaths(teacher);
                     break;
                 case "3":
                     viewEnrolledStudents(teacher);
                     break;
                 case "4":
+                    viewSurveyResponses(teacher);
+                    break;
+                case "5":
+                    viewOpenEndedExamResponses(teacher);
+                    break;
+                case "6":
                     currentUser = null;
                     back = true;
                     break;
@@ -182,12 +193,81 @@ public class ConsoleInterface {
             }
         }
     }
+    /**
+     * Permite al profesor ver todos los Learning Paths que ha creado.
+     *
+     * @param teacher El profesor que está solicitando ver sus Learning Paths.
+     */
+    private void viewLearningPaths(Teacher teacher) {
+        // Filtrar los Learning Paths creados por el profesor actual
+        List<LearningPath> teacherLPs = new ArrayList<>();
+        for (LearningPath lp : learningPaths) {
+            if (lp.getCreator().equals(teacher)) {
+                teacherLPs.add(lp);
+            }
+        }
+
+        // Verificar si el profesor tiene Learning Paths creados
+        if (teacherLPs.isEmpty()) {
+            System.out.println("No tiene Learning Paths creados.");
+            return;
+        }
+
+        // Mostrar los Learning Paths del profesor
+        System.out.println("\n=== Sus Learning Paths ===");
+        for (int i = 0; i < teacherLPs.size(); i++) {
+            LearningPath lp = teacherLPs.get(i);
+            System.out.println((i + 1) + ". " + lp.getTitle());
+            System.out.println("   Descripción: " + lp.getDescription());
+            System.out.println("   Objetivos: " + lp.getObjectives());
+            System.out.println("   Nivel de Dificultad: " + lp.getDifficultyLevel());
+            System.out.println("   Duración Total: " + lp.getDuration() + " minutos");
+            System.out.println("   Versión: " + lp.getVersion());
+        }
+    }
 
     /**
      * Permite al profesor crear un nuevo Learning Path y agregar actividades.
      *
      * @param teacher El profesor que está creando el Learning Path.
      */
+    /**
+     * Permite al profesor ver todos los estudiantes inscritos en sus Learning Paths.
+     *
+     * @param teacher El profesor que está solicitando ver los estudiantes inscritos.
+     */
+    private void viewEnrolledStudents(Teacher teacher) {
+        // Filtrar los Learning Paths creados por el profesor actual
+        List<LearningPath> teacherLPs = new ArrayList<>();
+        for (LearningPath lp : learningPaths) {
+            if (lp.getCreator().equals(teacher)) {
+                teacherLPs.add(lp);
+            }
+        }
+
+        // Verificar si el profesor tiene Learning Paths creados
+        if (teacherLPs.isEmpty()) {
+            System.out.println("No tiene Learning Paths creados.");
+            return;
+        }
+
+        // Iterar sobre cada Learning Path del profesor
+        for (LearningPath lp : teacherLPs) {
+            System.out.println("\n=== Learning Path: " + lp.getTitle() + " ===");
+            boolean hasEnrolledStudents = false;
+            for (Progress p : progresses) {
+                if (p.getLearningPath().equals(lp)) {
+                    Student student = p.getStudent();
+                    System.out.println("- " + student.getName() + " (" + student.getUsername() + ")");
+                    hasEnrolledStudents = true;
+                }
+            }
+            if (!hasEnrolledStudents) {
+                System.out.println("   No hay estudiantes inscritos en este Learning Path.");
+            }
+        }
+    }
+
     private void createLearningPath(Teacher teacher) {
         System.out.print("Título: ");
         String title = scanner.nextLine();
@@ -203,7 +283,9 @@ public class ConsoleInterface {
             System.out.println("1. Revisión de recurso");
             System.out.println("2. Tarea");
             System.out.println("3. Quiz");
-            System.out.println("4. Finalizar");
+            System.out.println("4. Examen de Preguntas Abiertas");
+            System.out.println("5. Encuesta");
+            System.out.println("6. Finalizar");
             System.out.print("Seleccione una opción: ");
             String choice = scanner.nextLine();
             switch (choice) {
@@ -220,6 +302,14 @@ public class ConsoleInterface {
                     lp.addActivity(quiz);
                     break;
                 case "4":
+                    Activity exam = createOpenEndedExam();
+                    lp.addActivity(exam);
+                    break;
+                case "5":
+                    Activity survey = createSurvey();
+                    lp.addActivity(survey);
+                    break;
+                case "6":
                     addingActivities = false;
                     break;
                 default:
@@ -227,7 +317,7 @@ public class ConsoleInterface {
             }
         }
         learningPaths.add(lp);
-        // Guardar datos inmediatamente después de crear un Learning Path
+        // Guardar datos
         saveData();
         System.out.println("Learning Path creado exitosamente.");
     }
@@ -312,31 +402,79 @@ public class ConsoleInterface {
     }
 
     /**
-     * Muestra todos los Learning Paths disponibles en el sistema.
+     * Crea una actividad de tipo Examen de Preguntas Abiertas.
+     *
+     * @return La actividad creada.
      */
-    private void viewLearningPaths() {
-        if (learningPaths.isEmpty()) {
-            System.out.println("No hay Learning Paths disponibles.");
-            return;
+    private Activity createOpenEndedExam() {
+        System.out.print("Título del examen: ");
+        String title = scanner.nextLine();
+        System.out.print("Descripción: ");
+        String description = scanner.nextLine();
+        System.out.print("Objetivo: ");
+        String objective = scanner.nextLine();
+        int difficultyLevel = readIntegerInput("Nivel de dificultad (1-5): ", 1, 5);
+        int expectedDuration = readIntegerInput("Duración esperada (minutos): ", 1, Integer.MAX_VALUE);
+        System.out.print("¿Es obligatorio? (s/n): ");
+        boolean isMandatory = scanner.nextLine().equalsIgnoreCase("s");
+        System.out.print("Instrucciones adicionales: ");
+        String additionalInstructions = scanner.nextLine();
+
+        // Selección de tipos de actividad (si es necesario)
+        Set<ActivityType> types = selectActivityTypes();
+
+        List<OpenEndedQuestion> openEndedQuestions = new ArrayList<>();
+        boolean addingQuestions = true;
+        while (addingQuestions) {
+            System.out.print("Ingrese el texto de la pregunta abierta: ");
+            String questionText = scanner.nextLine();
+            OpenEndedQuestion question = new OpenEndedQuestion(questionText);
+            openEndedQuestions.add(question);
+            System.out.print("¿Desea agregar otra pregunta? (s/n): ");
+            addingQuestions = scanner.nextLine().equalsIgnoreCase("s");
         }
-        System.out.println("\n=== Learning Paths Disponibles ===");
-        for (int i = 0; i < learningPaths.size(); i++) {
-            LearningPath lp = learningPaths.get(i);
-            System.out.println((i + 1) + ". " + lp.getTitle() + " (Creado por: " + lp.getCreator().getName() + ")");
-            System.out.println("   Descripción: " + lp.getDescription());
-            System.out.println("   Objetivos: " + lp.getObjectives());
-            System.out.println("   Nivel de Dificultad: " + lp.getDifficultyLevel());
-            System.out.println("   Duración Total: " + lp.getDuration() + " minutos");
-            System.out.println("   Versión: " + lp.getVersion());
-        }
+
+        return new OpenEndedExam(title, description, objective, difficultyLevel, expectedDuration, isMandatory, types, openEndedQuestions);
     }
 
     /**
-     * Permite al profesor ver los estudiantes inscritos en sus Learning Paths.
+     * Crea una actividad de tipo Encuesta.
      *
-     * @param teacher El profesor que está realizando el seguimiento.
+     * @return La actividad creada.
      */
-    private void viewEnrolledStudents(Teacher teacher) {
+    private Activity createSurvey() {
+        System.out.print("Título de la encuesta: ");
+        String title = scanner.nextLine();
+        System.out.print("Descripción: ");
+        String description = scanner.nextLine();
+        System.out.print("Objetivo: ");
+        String objective = scanner.nextLine();
+        int difficultyLevel = readIntegerInput("Nivel de dificultad (1-5): ", 1, 5);
+        int expectedDuration = readIntegerInput("Duración esperada (minutos): ", 1, Integer.MAX_VALUE);
+        System.out.print("¿Es obligatoria? (s/n): ");
+        boolean isMandatory = scanner.nextLine().equalsIgnoreCase("s");
+
+        Survey survey = new Survey(title, description, objective, difficultyLevel, expectedDuration, isMandatory);
+
+        boolean addingQuestions = true;
+        while (addingQuestions) {
+            System.out.print("Ingrese el texto de la pregunta de la encuesta: ");
+            String questionText = scanner.nextLine();
+            SurveyQuestion question = new SurveyQuestion(questionText);
+            survey.addSurveyQuestion(question);
+            System.out.print("¿Desea agregar otra pregunta? (s/n): ");
+            addingQuestions = scanner.nextLine().equalsIgnoreCase("s");
+        }
+
+        return survey;
+    }
+
+    /**
+     * Permite al profesor ver todas las respuestas a las encuestas.
+     *
+     * @param teacher El profesor que está revisando las respuestas.
+     */
+    private void viewSurveyResponses1(Teacher teacher) {
         List<LearningPath> teacherLPs = new ArrayList<>();
         for (LearningPath lp : learningPaths) {
             if (lp.getCreator().equals(teacher)) {
@@ -351,68 +489,106 @@ public class ConsoleInterface {
         for (int i = 0; i < teacherLPs.size(); i++) {
             System.out.println((i + 1) + ". " + teacherLPs.get(i).getTitle());
         }
-        int lpChoice = readIntegerInput("Seleccione un Learning Path para ver estudiantes (0 para regresar): ", 0, teacherLPs.size()) - 1;
+        int lpChoice = readIntegerInput("Seleccione un Learning Path para ver encuestas (0 para regresar): ", 0, teacherLPs.size()) - 1;
         if (lpChoice == -1) {
             return;
         }
         LearningPath selectedLP = teacherLPs.get(lpChoice);
-        List<Progress> lpProgresses = new ArrayList<>();
-        for (Progress p : progresses) {
-            if (p.getLearningPath().equals(selectedLP)) {
-                lpProgresses.add(p);
+        List<Activity> surveys = new ArrayList<>();
+        for (Activity activity : selectedLP.getActivities()) {
+            if (activity.getType().equals("Survey")) {
+                surveys.add(activity);
             }
         }
-        if (lpProgresses.isEmpty()) {
-            System.out.println("Ningún estudiante está inscrito en este Learning Path.");
+        if (surveys.isEmpty()) {
+            System.out.println("No hay encuestas en este Learning Path.");
             return;
         }
-        System.out.println("\n=== Estudiantes Inscritos en " + selectedLP.getTitle() + " ===");
-        for (int i = 0; i < lpProgresses.size(); i++) {
-            Progress p = lpProgresses.get(i);
-            System.out.println((i + 1) + ". " + p.getStudent().getName() + " - " + String.format("%.2f", p.calculateCompletionPercentage()) + "% completado");
+        System.out.println("\n=== Encuestas en " + selectedLP.getTitle() + " ===");
+        for (int i = 0; i < surveys.size(); i++) {
+            Survey survey = (Survey) surveys.get(i);
+            System.out.println((i + 1) + ". " + survey.getTitle());
         }
-        int studentChoice = readIntegerInput("Seleccione un estudiante para ver detalles (0 para regresar): ", 0, lpProgresses.size()) - 1;
-        if (studentChoice == -1) {
+        int surveyChoice = readIntegerInput("Seleccione una encuesta para ver respuestas (0 para regresar): ", 0, surveys.size()) - 1;
+        if (surveyChoice == -1) {
             return;
         }
-        Progress selectedProgress = lpProgresses.get(studentChoice);
-        reviewStudentProgress(selectedProgress);
+        Survey selectedSurvey = (Survey) surveys.get(surveyChoice);
+        List<SurveyResponse> responses = selectedSurvey.getSurveyResponses();
+        if (responses.isEmpty()) {
+            System.out.println("No hay respuestas para esta encuesta.");
+            return;
+        }
+        System.out.println("\n=== Respuestas a la Encuesta: " + selectedSurvey.getTitle() + " ===");
+        for (SurveyResponse response : responses) {
+            System.out.println("\nEstudiante: " + response.getStudent().getName());
+            List<String> answers = response.getAnswers();
+            List<SurveyQuestion> questions = selectedSurvey.getSurveyQuestions();
+            for (int i = 0; i < questions.size(); i++) {
+                System.out.println("Pregunta " + (i + 1) + ": " + questions.get(i).getQuestionText());
+                System.out.println("Respuesta: " + (i < answers.size() ? answers.get(i) : "No respondida"));
+            }
+        }
     }
 
     /**
-     * Permite al profesor revisar y calificar el progreso de un estudiante.
+     * Permite al profesor ver todas las respuestas a los exámenes de preguntas abiertas.
      *
-     * @param progress El progreso del estudiante seleccionado.
+     * @param teacher El profesor que está revisando las respuestas.
      */
-    private void reviewStudentProgress(Progress progress) {
-        System.out.println("\n=== Actividades del Estudiante: " + progress.getStudent().getName() + " ===");
-        List<Activity> activities = progress.getLearningPath().getActivities();
-        for (int i = 0; i < activities.size(); i++) {
-            Activity activity = activities.get(i);
-            ActivityStatus status = progress.getActivityStatus(activity);
-            System.out.println((i + 1) + ". " + activity.getTitle() + " - " + status);
+    private void viewOpenEndedExamResponses1(Teacher teacher) {
+        List<LearningPath> teacherLPs = new ArrayList<>();
+        for (LearningPath lp : learningPaths) {
+            if (lp.getCreator().equals(teacher)) {
+                teacherLPs.add(lp);
+            }
         }
-        int activityChoice = readIntegerInput("Seleccione una actividad para revisar (0 para regresar): ", 0, activities.size()) - 1;
-        if (activityChoice == -1) {
+        if (teacherLPs.isEmpty()) {
+            System.out.println("No tiene Learning Paths creados.");
             return;
         }
-        Activity selectedActivity = activities.get(activityChoice);
-        ActivityStatus status = progress.getActivityStatus(selectedActivity);
-        if (status == ActivityStatus.SUBMITTED) {
-            System.out.println("\n=== Revisando Actividad: " + selectedActivity.getTitle() + " ===");
-            // Aquí podrías agregar lógica para revisar la actividad y proporcionar retroalimentación
-            System.out.print("Ingrese calificación para la actividad (0-100): ");
-            double grade = readDoubleInput("Calificación: ", 0, 100);
-            System.out.print("Ingrese comentarios para el estudiante: ");
-            String feedback = scanner.nextLine();
-            // Simulamos que el profesor califica y completa la actividad
-            progress.updateActivityStatus(selectedActivity, ActivityStatus.COMPLETED);
-            // Guardar datos después de calificar una actividad
-            saveData();
-            System.out.println("Actividad calificada y comentarios enviados al estudiante.");
-            // Aquí podrías almacenar la calificación y feedback si es necesario
-        } else {
-            System.out.println("La actividad seleccionada no está en estado 'SUBMITTED' para revisión.");
+        System.out.println("\n=== Sus Learning Paths ===");
+        for (int i = 0; i < teacherLPs.size(); i++) {
+            System.out.println((i + 1) + ". " + teacherLPs.get(i).getTitle());
+        }
+        int lpChoice = readIntegerInput("Seleccione un Learning Path para ver exámenes (0 para regresar): ", 0, teacherLPs.size()) - 1;
+        if (lpChoice == -1) {
+            return;
+        }
+        LearningPath selectedLP = teacherLPs.get(lpChoice);
+        List<Activity> exams = new ArrayList<>();
+        for (Activity activity : selectedLP.getActivities()) {
+            if (activity.getType().equals("OpenEndedExam")) {
+                exams.add(activity);
+            }
+        }
+        if (exams.isEmpty()) {
+            System.out.println("No hay exámenes en este Learning Path.");
+            return;
+        }
+        System.out.println("\n=== Exámenes en " + selectedLP.getTitle() + " ===");
+        for (int i = 0; i < exams.size(); i++) {
+            OpenEndedExam exam = (OpenEndedExam) exams.get(i);
+            System.out.println((i + 1) + ". " + exam.getTitle());
+        }
+        int examChoice = readIntegerInput("Seleccione un examen para ver respuestas (0 para regresar): ", 0, exams.size()) - 1;
+        if (examChoice == -1) {
+            return;
+        }
+        OpenEndedExam selectedExam = (OpenEndedExam) exams.get(examChoice);
+        List<OpenEndedResponse> responses = selectedExam.getExamResponses();
+        if (responses.isEmpty()) {
+            System.out.println("No hay respuestas para este examen.");
+            return;
+        }
+        System.out.println("\n=== Respuestas al Examen: " + selectedExam.getTitle() + " ===");
+        for (OpenEndedResponse response : responses) {
+            System.out.println("\nEstudiante: " + response.getStudent().getName());
+            Map<String, String> answers = response.getAnswers();
+            for (Map.Entry<String, String> entry : answers.entrySet()) {
+                System.out.println("Pregunta: " + entry.getKey());
+                System.out.println("Respuesta: " + entry.getValue());
+            }
         }
     }
 
@@ -480,7 +656,7 @@ public class ConsoleInterface {
         LearningPath selectedLP = availableLPs.get(choice);
         Progress progress = new Progress(student, selectedLP);
         progresses.add(progress);
-        // Guardar datos después de inscribirse en un Learning Path
+        // Guardar datos
         saveData();
         System.out.println("Inscrito en " + selectedLP.getTitle());
     }
@@ -525,7 +701,7 @@ public class ConsoleInterface {
         for (int i = 0; i < activities.size(); i++) {
             Activity activity = activities.get(i);
             ActivityStatus status = progress.getActivityStatus(activity);
-            System.out.println((i + 1) + ". " + activity.getTitle() + " - " + status);
+            System.out.println((i + 1) + ". " + activity.getTitle() + " - " + status + " - Tipo: " + activity.getType());
         }
         int choice = readIntegerInput("Seleccione una actividad para realizar (0 para regresar): ", 0, activities.size()) - 1;
         if (choice == -1) {
@@ -533,11 +709,213 @@ public class ConsoleInterface {
         }
         Activity selectedActivity = activities.get(choice);
         ActivityStatus status = progress.getActivityStatus(selectedActivity);
-        if (status == ActivityStatus.COMPLETED) {
+        if (status == ActivityStatus.COMPLETED || status == ActivityStatus.SUBMITTED) {
             System.out.println("Esta actividad ya ha sido completada.");
             return;
         }
-        performActivity(progress, selectedActivity);
+        switch (selectedActivity.getType()) {
+            case "Survey":
+                respondToSurvey(progress, (Survey) selectedActivity);
+                break;
+            case "OpenEndedExam":
+                respondToOpenEndedExam(progress, (OpenEndedExam) selectedActivity);
+                break;
+            default:
+                performActivity(progress, selectedActivity);
+        }
+    }
+
+    /**
+     * Permite al estudiante responder una encuesta.
+     *
+     * @param progress El progreso del Learning Path.
+     * @param survey   La encuesta a la que se responderá.
+     */
+    private void respondToSurvey(Progress progress, Survey survey) {
+        // Verificar si el estudiante ya ha respondido la encuesta
+        SurveyResponse existingResponse = progress.getSurveyResponse(survey);
+        if (existingResponse != null) {
+            System.out.println("Ya has respondido a esta encuesta.");
+            return;
+        }
+
+        SurveyResponse response = new SurveyResponse((Student) currentUser);
+        System.out.println("\n=== Respondida a la Encuesta: " + survey.getTitle() + " ===");
+        for (SurveyQuestion question : survey.getSurveyQuestions()) {
+            System.out.println("Pregunta: " + question.getQuestionText());
+            System.out.print("Tu respuesta: ");
+            String answer = scanner.nextLine();
+            response.addAnswer(answer);
+        }
+
+        // Añadir la respuesta al progreso
+        progress.addSurveyResponse(survey, response);
+        survey.addSurveyResponse(response);
+
+        // Marcar la encuesta como completada
+        progress.updateActivityStatus(survey, ActivityStatus.COMPLETED);
+
+        // Guardar datos
+        saveData();
+        System.out.println("Gracias por responder la encuesta.");
+    }
+
+    /**
+     * Permite al estudiante responder un examen de preguntas abiertas.
+     *
+     * @param progress El progreso del Learning Path.
+     * @param exam     El examen a responder.
+     */
+    private void respondToOpenEndedExam(Progress progress, OpenEndedExam exam) {
+        // Verificar si el estudiante ya ha respondido el examen
+        OpenEndedResponse existingResponse = progress.getExamResponse(exam);
+        if (existingResponse != null) {
+            System.out.println("Ya has respondido a este examen.");
+            return;
+        }
+
+        OpenEndedResponse response = new OpenEndedResponse((Student) currentUser);
+        System.out.println("\n=== Respondida al Examen: " + exam.getTitle() + " ===");
+        for (OpenEndedQuestion question : exam.getExamQuestions()) {
+            System.out.println("Pregunta: " + question.getQuestionText());
+            System.out.print("Tu respuesta: ");
+            String answer = scanner.nextLine();
+            response.addAnswer(question.getQuestionText(), answer);
+        }
+
+        // Añadir la respuesta al progreso
+        progress.addExamResponse(exam, response);
+        exam.addExamResponse(response);
+
+        // Marcar el examen como entregado
+        progress.updateActivityStatus(exam, ActivityStatus.SUBMITTED);
+
+        // Guardar datos
+        saveData();
+        System.out.println("Examen entregado. Esperando revisión del profesor.");
+    }
+
+    /**
+     * Permite al profesor ver las respuestas a las encuestas.
+     *
+     * @param teacher El profesor que está revisando las respuestas.
+     */
+    private void viewSurveyResponses(Teacher teacher) {
+        List<LearningPath> teacherLPs = new ArrayList<>();
+        for (LearningPath lp : learningPaths) {
+            if (lp.getCreator().equals(teacher)) {
+                teacherLPs.add(lp);
+            }
+        }
+        if (teacherLPs.isEmpty()) {
+            System.out.println("No tiene Learning Paths creados.");
+            return;
+        }
+        System.out.println("\n=== Sus Learning Paths ===");
+        for (int i = 0; i < teacherLPs.size(); i++) {
+            System.out.println((i + 1) + ". " + teacherLPs.get(i).getTitle());
+        }
+        int lpChoice = readIntegerInput("Seleccione un Learning Path para ver encuestas (0 para regresar): ", 0, teacherLPs.size()) - 1;
+        if (lpChoice == -1) {
+            return;
+        }
+        LearningPath selectedLP = teacherLPs.get(lpChoice);
+        List<Activity> surveys = new ArrayList<>();
+        for (Activity activity : selectedLP.getActivities()) {
+            if (activity.getType().equals("Survey")) {
+                surveys.add(activity);
+            }
+        }
+        if (surveys.isEmpty()) {
+            System.out.println("No hay encuestas en este Learning Path.");
+            return;
+        }
+        System.out.println("\n=== Encuestas en " + selectedLP.getTitle() + " ===");
+        for (int i = 0; i < surveys.size(); i++) {
+            Survey survey = (Survey) surveys.get(i);
+            System.out.println((i + 1) + ". " + survey.getTitle());
+        }
+        int surveyChoice = readIntegerInput("Seleccione una encuesta para ver respuestas (0 para regresar): ", 0, surveys.size()) - 1;
+        if (surveyChoice == -1) {
+            return;
+        }
+        Survey selectedSurvey = (Survey) surveys.get(surveyChoice);
+        List<SurveyResponse> responses = selectedSurvey.getSurveyResponses();
+        if (responses.isEmpty()) {
+            System.out.println("No hay respuestas para esta encuesta.");
+            return;
+        }
+        System.out.println("\n=== Respuestas a la Encuesta: " + selectedSurvey.getTitle() + " ===");
+        for (SurveyResponse response : responses) {
+            System.out.println("\nEstudiante: " + response.getStudent().getName());
+            List<String> answers = response.getAnswers();
+            List<SurveyQuestion> questions = selectedSurvey.getSurveyQuestions();
+            for (int i = 0; i < questions.size(); i++) {
+                System.out.println("Pregunta " + (i + 1) + ": " + questions.get(i).getQuestionText());
+                System.out.println("Respuesta: " + (i < answers.size() ? answers.get(i) : "No respondida"));
+            }
+        }
+    }
+
+    /**
+     * Permite al profesor ver las respuestas a los exámenes de preguntas abiertas.
+     *
+     * @param teacher El profesor que está revisando las respuestas.
+     */
+    private void viewOpenEndedExamResponses(Teacher teacher) {
+        List<LearningPath> teacherLPs = new ArrayList<>();
+        for (LearningPath lp : learningPaths) {
+            if (lp.getCreator().equals(teacher)) {
+                teacherLPs.add(lp);
+            }
+        }
+        if (teacherLPs.isEmpty()) {
+            System.out.println("No tiene Learning Paths creados.");
+            return;
+        }
+        System.out.println("\n=== Sus Learning Paths ===");
+        for (int i = 0; i < teacherLPs.size(); i++) {
+            System.out.println((i + 1) + ". " + teacherLPs.get(i).getTitle());
+        }
+        int lpChoice = readIntegerInput("Seleccione un Learning Path para ver exámenes (0 para regresar): ", 0, teacherLPs.size()) - 1;
+        if (lpChoice == -1) {
+            return;
+        }
+        LearningPath selectedLP = teacherLPs.get(lpChoice);
+        List<Activity> exams = new ArrayList<>();
+        for (Activity activity : selectedLP.getActivities()) {
+            if (activity.getType().equals("OpenEndedExam")) {
+                exams.add(activity);
+            }
+        }
+        if (exams.isEmpty()) {
+            System.out.println("No hay exámenes en este Learning Path.");
+            return;
+        }
+        System.out.println("\n=== Exámenes en " + selectedLP.getTitle() + " ===");
+        for (int i = 0; i < exams.size(); i++) {
+            OpenEndedExam exam = (OpenEndedExam) exams.get(i);
+            System.out.println((i + 1) + ". " + exam.getTitle());
+        }
+        int examChoice = readIntegerInput("Seleccione un examen para ver respuestas (0 para regresar): ", 0, exams.size()) - 1;
+        if (examChoice == -1) {
+            return;
+        }
+        OpenEndedExam selectedExam = (OpenEndedExam) exams.get(examChoice);
+        List<OpenEndedResponse> responses = selectedExam.getExamResponses();
+        if (responses.isEmpty()) {
+            System.out.println("No hay respuestas para este examen.");
+            return;
+        }
+        System.out.println("\n=== Respuestas al Examen: " + selectedExam.getTitle() + " ===");
+        for (OpenEndedResponse response : responses) {
+            System.out.println("\nEstudiante: " + response.getStudent().getName());
+            Map<String, String> answers = response.getAnswers();
+            for (Map.Entry<String, String> entry : answers.entrySet()) {
+                System.out.println("Pregunta: " + entry.getKey());
+                System.out.println("Respuesta: " + entry.getValue());
+            }
+        }
     }
 
     /**
@@ -599,6 +977,10 @@ public class ConsoleInterface {
                 // Guardar datos después de completar un quiz
                 saveData();
                 break;
+            case "OpenEndedExam":
+                // Las respuestas a exámenes de preguntas abiertas se manejan en el método respondToOpenEndedExam
+                System.out.println("Por favor, dirígete al menú de actividades para responder este examen.");
+                break;
             default:
                 System.out.println("Tipo de actividad desconocido.");
         }
@@ -657,4 +1039,42 @@ public class ConsoleInterface {
         }
         return result;
     }
+
+    /**
+     * Permite al usuario seleccionar múltiples tipos de actividad.
+     *
+     * @return Un conjunto de ActivityType seleccionados.
+     */
+    private Set<ActivityType> selectActivityTypes() {
+        Set<ActivityType> types = new HashSet<>();
+        boolean addingTypes = true;
+
+        while (addingTypes) {
+            System.out.println("\nSeleccione un tipo de actividad:");
+            ActivityType[] activityTypes = ActivityType.values();
+            for (int i = 0; i < activityTypes.length; i++) {
+                System.out.println((i + 1) + ". " + activityTypes[i]);
+            }
+            System.out.println("0. Finalizar selección");
+            int choice = readIntegerInput("Seleccione una opción (0 para finalizar): ", 0, activityTypes.length);
+
+            if (choice == 0) {
+                if (types.isEmpty()) {
+                    System.out.println("Debe seleccionar al menos un tipo de actividad.");
+                } else {
+                    addingTypes = false;
+                }
+            } else {
+                ActivityType selectedType = activityTypes[choice - 1];
+                if (types.contains(selectedType)) {
+                    System.out.println("El tipo ya ha sido agregado.");
+                } else {
+                    types.add(selectedType);
+                    System.out.println("Tipo agregado: " + selectedType);
+                }
+            }
+        }
+        return types;
+    }
 }
+

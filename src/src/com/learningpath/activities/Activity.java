@@ -3,6 +3,7 @@ package src.com.learningpath.activities;
 import java.io.Serializable;
 import java.util.Date;
 import java.util.List;
+import java.util.Set;
 
 public abstract class Activity implements Serializable {
     private static final long serialVersionUID = 1L;
@@ -24,7 +25,17 @@ public abstract class Activity implements Serializable {
         this.expectedDuration = expectedDuration;
         this.isMandatory = isMandatory;
     }
-
+    public Activity(String title2, String description2, String objective2, int difficultyLevel2, int expectedDuration2,
+			boolean isMandatory2, Set<ActivityType> types) {
+		// TODO Auto-generated constructor stub
+	}
+	public enum ActivityStatus {
+        PENDING,
+        IN_PROGRESS,
+        SUBMITTED,
+        COMPLETED,
+        FAILED
+    }
     // Getters para los campos privados/protegidos
 
     public String getTitle() {
@@ -58,6 +69,7 @@ public abstract class Activity implements Serializable {
     public boolean isMandatory() {
         return isMandatory;
     }
+  
 
     // Método abstracto para obtener el tipo de actividad
     public abstract String getType();
