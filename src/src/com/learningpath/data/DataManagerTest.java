@@ -1,7 +1,6 @@
-package src.com.learningpath.test;
+package src.com.learningpath.data;
 
 import src.com.learningpath.LearningPath;
-import src.com.learningpath.data.DataManager;
 import src.com.learningpath.users.Teacher;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;

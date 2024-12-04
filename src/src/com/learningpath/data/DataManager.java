@@ -67,4 +67,7 @@ public class DataManager {
             return (List<Progress>) ois.readObject();
         }
     }
-}
+
+	
+	}
+
